@@ -1,0 +1,73 @@
+import "Datatypes.thingml"
+ 
+thing Configurable 
+@c_header "#include <confuse.h>"
+{
+	
+	readonly property config_file_name : String = "test.conf" 
+	
+	property greetings : String = "UNDEFINED" 
+	property times : Int = 1 
+	
+	
+	function readConfiguration() do
+		
+		// Define the variable expected to be in the config file and their associated default values
+		'cfg_opt_t opts[] =
+	    {
+	        CFG_STR("greetings", "Lets go to lunch!", CFGF_NONE),
+	        CFG_INT("times", 3, CFGF_NONE),
+	        CFG_END()
+	    };'
+	    
+	    // Create the configuration variable
+	    'cfg_t *cfg;
+	    cfg = cfg_init(opts, CFGF_NONE);'
+	
+		print "Reading configuration file.\n"
+	
+		// parse the config file
+	    if('cfg_parse(cfg, '&config_file_name&') == CFG_PARSE_ERROR') do
+	    	print "Error(s) in config file.\n"
+	    end
+	   
+	    // Assign properties
+	   	greetings = 'cfg_getstr(cfg, "greetings")'
+	    times = 'cfg_getint(cfg, "times")'
+
+		// cfg_free(cfg);
+
+	end
+	
+	function writeConfiguration() do
+	
+	end
+	
+	
+	statechart init Main {
+		
+		on entry readConfiguration()
+		
+		state Main {
+			
+			on entry do
+				var i : Int = 0
+				while(i<times) do
+					'printf("%s",'&greetings&');'
+					print "\n"
+					i = i + 1
+				end
+				'exit(0);'
+			end		
+		}
+	}	
+}
+
+configuration Test 
+@add_c_libraries "confuse"
+{
+	
+	instance c : Configurable
+	set c.config_file_name = "test.conf"
+	
+}
