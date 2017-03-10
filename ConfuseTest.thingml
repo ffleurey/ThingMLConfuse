@@ -2,62 +2,79 @@ import "Datatypes.thingml"
  
 thing Configurable 
 @c_header "#include <confuse.h>"
+@c_global "cfg_t *cfg;"
 {
-	
 	readonly property config_file_name : String = "test.conf" 
 	
 	property greetings : String = "UNDEFINED" 
 	property times : Int = 1 
 	
-	
-	function readConfiguration() do
-		
-		// Define the variable expected to be in the config file and their associated default values
+	// Define the variables expected to be in the configuration file and their associated default values
+	function createConfiguration() do
 		'cfg_opt_t opts[] =
 	    {
-	        CFG_STR("greetings", "Lets go to lunch!", CFGF_NONE),
-	        CFG_INT("times", 3, CFGF_NONE),
+	        CFG_STR("greetings"	, "Lets go to lunch!"	, CFGF_NONE),
+	        CFG_INT("times"		, 3						, CFGF_NONE),
 	        CFG_END()
 	    };'
 	    
-	    // Create the configuration variable
-	    'cfg_t *cfg;
-	    cfg = cfg_init(opts, CFGF_NONE);'
+	    // Create the configuration variable (allocate the configuration data structure)
+	    'cfg = cfg_init(opts, CFGF_NONE);'
+	end
 	
+	// free the configuration data structure
+	function freeConfiguration() 'cfg_free(cfg);'
+	
+	
+	function readConfiguration() do
+		// parse the configuration file
 		print "Reading configuration file.\n"
-	
-		// parse the config file
-	    if('cfg_parse(cfg, '&config_file_name&') == CFG_PARSE_ERROR') do
+	    if('cfg_parse(cfg, '&config_file_name&') == CFG_PARSE_ERROR')
 	    	print "Error(s) in config file.\n"
-	    end
 	   
-	    // Assign properties
+	    // Assign the corresponding properties
 	   	greetings = 'cfg_getstr(cfg, "greetings")'
 	    times = 'cfg_getint(cfg, "times")'
-
-		// cfg_free(cfg);
-
 	end
 	
 	function writeConfiguration() do
 	
+		// Only update if the pointer is different (otherwise the value would be lost)
+		if (greetings != 'cfg_getstr(cfg, "greetings")') 'cfg_setstr(cfg, "greetings", '&greetings&');'
+
+		'cfg_setint(cfg, "times", '&times&');'
+
+		// Write the configuration file
+		'FILE *fp = fopen('&config_file_name&', "w");'
+        'cfg_print(cfg, fp);'
+        'fclose(fp);'
 	end
 	
+	function terminate() do
+		writeConfiguration()
+		freeConfiguration()
+		'exit(0);'
+	end
+	
+	function printGreetings() 'printf("%s\n",'&greetings&');'
 	
 	statechart init Main {
 		
-		on entry readConfiguration()
+		on entry do 
+			createConfiguration()
+			readConfiguration()
+		end
 		
 		state Main {
 			
 			on entry do
 				var i : Int = 0
 				while(i<times) do
-					'printf("%s",'&greetings&');'
-					print "\n"
+					printGreetings()
 					i = i + 1
 				end
-				'exit(0);'
+				times = times + 1
+				terminate()
 			end		
 		}
 	}	
